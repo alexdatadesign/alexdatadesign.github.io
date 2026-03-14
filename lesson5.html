@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="uk">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Гра з кубиком — сумарно та середнє</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f0f8ff;
+            text-align: center;
+            padding: 20px;
+        }
+
+        h2 {
+            color: #3333cc;
+        }
+
+        input {
+            width: 60px;
+            margin: 0 5px;
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #aaa;
+        }
+
+        button {
+            margin: 5px;
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: none;
+            background: #4CAF50;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background: #45a049;
+        }
+
+        #dice {
+            font-size: 80px;
+            margin: 20px;
+            transition: 0.3s;
+        }
+
+        #result {
+            font-size: 24px;
+            margin: 10px;
+            transition: 0.3s;
+        }
+
+        .win {
+            color: green;
+            font-weight: bold;
+        }
+
+        .lose {
+            color: red;
+            font-weight: bold;
+        }
+
+        #stats {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            font-size: 20px;
+            margin: 15px;
+        }
+
+        #chart-container {
+            width: 80%;
+            margin: auto;
+            background: #ffffffaa;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+
+    <h2>🎲 Гра з кубиком: цукерки та середній виграш 🍬</h2>
+
+    <div>
+        Виграш при 6: <input id="winReward" type="number" value="10">
+        Втрата при не 6: <input id="losePenalty" type="number" value="1">
+        Кидків: <input id="numRolls" type="number" value="50">
+    </div>
+    <div style="margin-top:10px;">
+        <button onclick="runSimulation()">▶️ Play</button>
+        <button onclick="pauseSimulation()">⏸ Pause</button>
+        <button onclick="resetSimulation()">🔄 Reset</button>
+    </div>
+
+    <div id="dice">🎲</div>
+    <div id="result"></div>
+
+    <div id="stats">
+        <div>🍬 Цукерок всього: <b id="candies">0</b></div>
+        <div>📊 Середній виграш: <b id="avg">0</b></div>
+    </div>
+
+    <div id="chart-container">
+        <canvas id="chart" width="700" height="400"></canvas>
+    </div>
+
+    <script>
+        let chart;
+        let paused = false;
+        let running = false;
+
+        function sleep(ms) { return new Promise(r => setTimeout(r, ms)) }
+
+        async function runSimulation() {
+            if (running) return;
+            running = true;
+            paused = false;
+
+            const winReward = +document.getElementById("winReward").value;
+            const losePenalty = +document.getElementById("losePenalty").value;
+            const numRolls = +document.getElementById("numRolls").value;
+
+            let sum = 0;
+            let candies = 0;
+
+            const expectedValue = winReward * (1 / 6) + (-losePenalty) * (5 / 6);
+
+            if (chart) chart.destroy();
+
+            const ctx = document.getElementById("chart").getContext("2d");
+            chart = new Chart(ctx, {
+                type: "line",
+                data: {
+                    labels: [],
+                    datasets: [
+                        { label: "Середній виграш", data: [], borderColor: "blue", fill: false, tension: 0.2 },
+                        { label: "Кумулятивна сума", data: [], borderColor: "green", fill: false, tension: 0.2 },
+                        { label: "Expected Value", data: [], borderColor: "red", borderDash: [10, 5], fill: false, tension: 0, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    animation: false,
+                    scales: {
+                        y: { beginAtZero: false }
+                    }
+                }
+            });
+
+            for (let i = 1; i <= numRolls; i++) {
+                while (paused) await sleep(200);
+
+                // Анімація кубика
+                for (let j = 0; j < 6; j++) {
+                    const animDice = Math.floor(Math.random() * 6) + 1;
+                    document.getElementById("dice").textContent = "🎲 " + animDice;
+                    document.getElementById("dice").style.color = "#333"; // нейтральний колір під час анімації
+                    await sleep(60);
+                }
+
+                const dice = Math.floor(Math.random() * 6) + 1;
+                document.getElementById("dice").textContent = "🎲 " + dice;
+
+                let reward, text, css, color;
+                if (dice === 6) {
+                    reward = winReward;
+                    candies += reward;
+                    text = "ВИГРАВ";
+                    css = "win";
+                    color = "green";
+                } else {
+                    reward = -losePenalty;
+                    candies += reward;
+                    text = "ПРОГРАВ";
+                    css = "lose";
+                    color = "red";
+                }
+
+                sum += reward;
+                const avg = sum / i;
+
+                // Підсвічування кубика та результату
+                document.getElementById("dice").style.color = color;
+                document.getElementById("result").innerHTML =
+                    `<span class="${css}">Число: ${dice} → ${text} (${reward > 0 ? "+" : ""}${reward})</span>`;
+                document.getElementById("result").style.color = color;
+
+                document.getElementById("candies").textContent = candies;
+                document.getElementById("avg").textContent = avg.toFixed(2);
+
+                chart.data.labels.push(i);
+                chart.data.datasets[0].data.push(avg);
+                chart.data.datasets[1].data.push(candies);
+                chart.data.datasets[2].data.push(expectedValue);
+                chart.update();
+
+                await sleep(350);
+            }
+            running = false;
+        }
+
+        function pauseSimulation() {
+            paused = !paused;
+        }
+
+        function resetSimulation() {
+            running = false;
+            paused = false;
+            if (chart) chart.destroy();
+            chart = null;
+            document.getElementById("candies").textContent = 0;
+            document.getElementById("avg").textContent = 0;
+            document.getElementById("dice").textContent = "🎲";
+            document.getElementById("dice").style.color = "#333";
+            document.getElementById("result").innerHTML = "";
+            document.getElementById("result").style.color = "#333";
+        }
+    </script>
+
+</body>
+
+</html>
