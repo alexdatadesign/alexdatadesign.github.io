@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Битва заправок — Рівновага Неша</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <!-- Scripts -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        :root {
+            --bg: #0d1117;
+            --card: rgba(22, 27, 34, 0.8);
+            --station-a: #3b82f6;
+            --station-b: #ef4444;
+            --accent: #10b981;
+            --text: #f0f6fc;
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            background-image: 
+                radial-gradient(circle at 10% 10%, rgba(59, 130, 246, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 90% 90%, rgba(239, 68, 68, 0.05) 0%, transparent 40%);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            padding: 0.25rem 1rem;
+            overflow-x: hidden;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.8rem;
+            font-weight: 900;
+            margin-bottom: 0.1rem;
+            text-align: center;
+            background: linear-gradient(135deg, #fff 0%, #8b949e 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: #8b949e;
+            margin-bottom: 0.5rem;
+            text-align: center;
+            max-width: 650px;
+            font-weight: 300;
+            font-size: 0.85rem;
+        }
+
+        .market-status {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-badge {
+            background: rgba(255,255,255,0.05);
+            padding: 0.3rem 0.6rem;
+            border-radius: 100px;
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: #8b949e;
+        }
+
+        .status-badge.active {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent);
+            border-color: rgba(16, 185, 129, 0.3);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.1);
+        }
+
+        .bot-state {
+            font-size: 0.65rem;
+            margin-top: 0.4rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.05);
+            color: #8b949e;
+            transition: 0.3s;
+        }
+
+        .bot-state.active {
+            background: rgba(59, 130, 246, 0.2);
+            color: #3b82f6;
+        }
+
+        /* --- Simulation Area --- */
+        .main-container {
+            width: 100%;
+            max-width: 1000px;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .simulation-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+        }
+
+        .station-card {
+            background: var(--card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 0.75rem 1.25rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+
+        .station-a { border-top: 3px solid var(--station-a); }
+        .station-b { border-top: 3px solid var(--station-b); }
+
+        .icon-box {
+            width: 40px;
+            height: 40px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.25rem;
+        }
+
+        .icon-box i { width: 20px; height: 20px; }
+
+        .price-text {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.2rem;
+            font-weight: 900;
+            margin: 0.1rem 0;
+            letter-spacing: -1px;
+        }
+
+        .currency { font-size: 0.9rem; font-weight: 400; color: #8b949e; letter-spacing: 0; }
+
+        .btn-group {
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.25rem;
+        }
+
+        button {
+            padding: 0.4rem 0.8rem;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: 0.2s;
+            font-family: inherit;
+            font-size: 0.85rem;
+        }
+
+        .btn-inc { background: rgba(16, 185, 129, 0.1); color: var(--accent); }
+        .btn-dec { background: rgba(239, 68, 68, 0.1); color: var(--station-b); }
+        button:hover { opacity: 0.8; transform: translateY(-2px); }
+
+        /* --- Customers --- */
+        .customer-track {
+            height: 100px;
+            background: rgba(255,255,255,0.02);
+            border-radius: 20px;
+            position: relative;
+            border: 1px solid var(--glass-border);
+            overflow: hidden;
+        }
+
+        .customer {
+            position: absolute;
+            font-size: 20px;
+            transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+            filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+        }
+
+        .chart-card {
+            background: var(--card);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 0.75rem;
+            min-height: 150px;
+        }
+
+        .chart-label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #8b949e;
+            text-transform: uppercase;
+            margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        /* --- Actions Panel --- */
+        .actions-panel {
+            background: var(--card);
+            padding: 0.5rem;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 0.4rem;
+        }
+
+        .scenario-btn {
+            background: #21262d;
+            color: #c9d1d9;
+            border: 1px solid #30363d;
+            padding: 0.4rem 0.6rem;
+            border-radius: 10px;
+            flex: 1;
+            min-width: 140px;
+            justify-content: center;
+            font-size: 0.75rem;
+        }
+
+        .scenario-btn.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+
+        .label-badge {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+            opacity: 0.6;
+        }
+
+        .profit-card {
+            margin-top: 0.5rem;
+            text-align: center;
+            padding: 0.25rem 0.5rem;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+
+        /* --- Explanation --- */
+        .info-box {
+            background: var(--card);
+            padding: 0.75rem 1.25rem;
+            border-radius: 20px;
+            border: 1px solid var(--glass-border);
+        }
+
+        .info-box h3 {
+            font-family: 'Outfit', sans-serif;
+            color: var(--accent);
+            margin-bottom: 0.25rem;
+            font-size: 1.1rem;
+        }
+
+        .info-box p {
+            line-height: 1.4;
+            color: #8b949e;
+            margin-bottom: 0.4rem;
+            font-size: 0.85rem;
+        }
+
+        strong { color: #fff; }
+
+        #handshake {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 60px;
+            opacity: 0;
+            z-index: 20;
+            pointer-events: none;
+        }
+
+        @media (max-width: 768px) {
+            .simulation-grid { grid-template-columns: 1fr; }
+            .actions-panel { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Битва заправок</h1>
+    <p class="subtitle">Чи вигідно заправкам домовлятися між собою? Давай перевіримо різні сценарії!</p>
+
+    <div class="market-status">
+        <div class="status-badge" id="badgeCollusion"><i data-lucide="handshake"></i> ЗМОВА / ДОВІРА</div>
+        <div class="status-badge" id="badgeTFT"><i data-lucide="brain-circuit"></i> СТРАТЕГІЯ / АІ</div>
+    </div>
+
+    <div class="main-container">
+        
+        <div class="simulation-grid">
+            <!-- Station A -->
+            <div class="station-card station-a">
+                <div class="label-badge">СИНІ</div>
+                <div class="icon-box" style="color: var(--station-a)">
+                    <i data-lucide="fuel"></i>
+                </div>
+                <div class="price-text" id="priceA">50<span class="currency"> ₴</span></div>
+                <div class="btn-group">
+                    <button class="btn-dec" onclick="setPrice('A', state.priceA - 1)"><i data-lucide="minus"></i></button>
+                    <button class="btn-inc" onclick="setPrice('A', state.priceA + 1)"><i data-lucide="plus"></i></button>
+                </div>
+                <div class="profit-card" id="profitA" style="color: var(--station-a)">Прибуток: 0 ₴</div>
+                <div class="bot-state" id="botA">ГРАВЕЦЬ</div>
+            </div>
+
+            <!-- Station B -->
+            <div class="station-card station-b">
+                <div class="label-badge">ЧЕРВОНІ</div>
+                <div class="icon-box" style="color: var(--station-b)">
+                    <i data-lucide="fuel"></i>
+                </div>
+                <div class="price-text" id="priceB">50<span class="currency"> ₴</span></div>
+                <div class="btn-group">
+                    <button class="btn-dec" onclick="setPrice('B', state.priceB - 1)"><i data-lucide="minus"></i></button>
+                    <button class="btn-inc" onclick="setPrice('B', state.priceB + 1)"><i data-lucide="plus"></i></button>
+                </div>
+                <div class="profit-card" id="profitB" style="color: var(--station-b)">Прибуток: 0 ₴</div>
+                <div class="bot-state" id="botB">ПАРТНЕР</div>
+            </div>
+        </div>
+
+        <div class="customer-track" id="track">
+            <div id="handshake">🤝</div>
+            <!-- Customers added via JS -->
+        </div>
+
+        <div class="chart-card">
+            <div class="chart-label"><i data-lucide="trending-up" style="width:16px"></i> Історія прибутку</div>
+            <div style="height: 200px; width: 100%;">
+                <canvas id="profitChart"></canvas>
+            </div>
+        </div>
+
+        <div class="actions-panel">
+            <button class="scenario-btn" onclick="runPriceWar()" title="Конкуренція за клієнта">
+                <i data-lucide="swords"></i> Цінова війна
+            </button>
+            <button class="scenario-btn" onclick="runCollusion()" title="Вони домовились про високу ціну">
+                <i data-lucide="users"></i> Співпраця (Змова)
+            </button>
+            <button class="scenario-btn" onclick="startTitForTat()" id="tftBtn" title="Бот повторює твої дії">
+                <i data-lucide="repeat"></i> Стратегія "Око за око"
+            </button>
+            <button class="scenario-btn" onclick="runMonopoly()" title="Обоє ставлять ціну в небо">
+                <i data-lucide="crown"></i> Монополія
+            </button>
+            <button class="scenario-btn" style="background:#30363d" onclick="resetSim()">
+                <i data-lucide="rotate-ccw"></i> Скинути
+            </button>
+        </div>
+
+        <div class="info-box">
+            <div id="explanation-content">
+                <h3>Вибери сценарій, щоб дізнатися більше</h3>
+                <p>Натискай на кнопки вище, щоб побачити, що відбувається з ринком.</p>
+            </div>
+            <p style="font-size: 0.9rem; opacity: 0.5; margin-top: 1rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem;">
+                * Собівартість бензину: 40 ₴ за літр.
+            </p>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        const cost = 40;
+        const state = {
+            priceA: 50,
+            priceB: 50,
+            isSimulating: false,
+            isTFT: false,
+            customers: [],
+            step: 0
+        };
+
+        let chart;
+
+        const emojis = ['🚗', '🚙', '🚕', '🚌', '🚐', '🏎', '🛻', '🛵', '🚛', '🚲', '🚜', '🚑'];
+        const totalCustomers = 30;
+
+        function init() {
+            const track = document.getElementById('track');
+            track.innerHTML = '<div id="handshake">🤝</div>';
+            state.customers = [];
+            for (let i = 0; i < totalCustomers; i++) {
+                const div = document.createElement('div');
+                div.className = 'customer';
+                div.dataset.jitter = Math.random() * 60 - 30;
+                div.innerText = emojis[Math.floor(Math.random() * emojis.length)];
+                div.style.top = Math.random() * 120 + 20 + 'px';
+                div.style.left = 'calc(50% - 14px)';
+                track.appendChild(div);
+                state.customers.push(div);
+            }
+            initChart();
+            update();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('profitChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Сині (₴)',
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            data: [],
+                            borderWidth: 3,
+                            tension: 0.4,
+                            pointRadius: 0
+                        },
+                        {
+                            label: 'Червоні (₴)',
+                            borderColor: '#ef4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            data: [],
+                            borderWidth: 3,
+                            tension: 0.4,
+                            pointRadius: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                            ticks: { color: '#8b949e', font: { size: 10 } },
+                            min: 0
+                        }
+                    },
+                    animation: { duration: 0 }
+                }
+            });
+        }
+
+        function setPrice(station, val, force = false) {
+            if (state.isSimulating && !force) return;
+            
+            if (station === 'A') {
+                state.priceA = Math.max(cost, val);
+                if (state.isTFT) {
+                    setTimeout(() => {
+                        state.priceB = state.priceA;
+                        update(true);
+                    }, 400);
+                }
+            } else {
+                if (state.isTFT) return; 
+                state.priceB = Math.max(cost, val);
+            }
+            update(true);
+        }
+
+        function update(record = false) {
+            document.getElementById('priceA').innerHTML = `${state.priceA}<span class="currency"> ₴</span>`;
+            document.getElementById('priceB').innerHTML = `${state.priceB}<span class="currency"> ₴</span>`;
+
+            let shareA = 0, shareB = 0;
+            state.customers.forEach((c, i) => {
+                const jitter = parseFloat(c.dataset.jitter);
+                if (state.priceA < state.priceB) {
+                    c.style.left = `calc(10% + ${jitter}px)`; shareA++;
+                } else if (state.priceB < state.priceA) {
+                    c.style.left = `calc(85% + ${jitter}px)`; shareB++;
+                } else {
+                    if (i % 2 === 0) {
+                        c.style.left = `calc(10% + ${jitter}px)`; shareA++;
+                    } else {
+                        c.style.left = `calc(85% + ${jitter}px)`; shareB++;
+                    }
+                }
+            });
+
+            const pA = (state.priceA - cost) * shareA;
+            const pB = (state.priceB - cost) * shareB;
+
+            document.getElementById('profitA').innerText = `Прибуток: ${pA} ₴`;
+            document.getElementById('profitB').innerText = `Прибуток: ${pB} ₴`;
+
+            if (record && chart) {
+                state.step++;
+                chart.data.labels.push(state.step);
+                chart.data.datasets[0].data.push(pA);
+                chart.data.datasets[1].data.push(pB);
+                if (chart.data.labels.length > 50) {
+                    chart.data.labels.shift();
+                    chart.data.datasets[0].data.shift();
+                    chart.data.datasets[1].data.shift();
+                }
+                chart.update();
+            }
+        }
+
+        async function runPriceWar() {
+            if (state.isSimulating) return;
+            state.isTFT = false;
+            state.isSimulating = true;
+            updateUIState('none');
+            
+            try {
+                document.getElementById('explanation-content').innerHTML = `
+                    <h3>🗡 Цінова війна</h3>
+                    <p>Кожна заправка намагається знизити ціну на 1 гривню, щоб переманити всіх клієнтів. 
+                    В результаті ціна падає до <strong>40 ₴</strong>. Власники не заробляють!</p>
+                `;
+                while (state.priceA > cost || state.priceB > cost) {
+                    if (state.priceA > state.priceB) state.priceA = state.priceB - 1;
+                    else if (state.priceB > state.priceA) state.priceB = state.priceA - 1;
+                    else state.priceA -= 1;
+                    state.priceA = Math.max(cost, state.priceA);
+                    state.priceB = Math.max(cost, state.priceB);
+                    update(true);
+                    await new Promise(r => setTimeout(r, 400));
+                    if (state.priceA === cost && state.priceB === cost) break;
+                }
+            } finally { state.isSimulating = false; }
+        }
+
+        async function runCollusion() {
+            if (state.isSimulating) return;
+            state.isTFT = false;
+            state.isSimulating = true;
+            updateUIState('collusion');
+
+            try {
+                const handshake = document.getElementById('handshake');
+                gsap.fromTo(handshake, { opacity: 0, scale: 0 }, { opacity: 1, scale: 1, duration: 0.5, onComplete: () => {
+                    gsap.to(handshake, { opacity: 0, delay: 1, duration: 0.5 });
+                }});
+                document.getElementById('explanation-content').innerHTML = `
+                    <h3>🤝 Співпраця (Змова) — Стан Довіри</h3>
+                    <p>Ви домовилися про <strong>60 ₴</strong>. Обоє заробляєте добре. Але за вами ніхто не стежить!</p>
+                    <p>👉 <strong>СПРОБУЙ ОБМАНУТИ:</strong> Знизь ціну Синьої заправки на 1-2 ₴. Ти побачиш, як ти вкрадеш ВСІХ клієнтів, а Червона заправка <strong>нічого не змінить</strong>, бо партнер тобі довіряє.</p>
+                `;
+                await gsap.to(state, { priceA: 60, priceB: 60, duration: 1, onUpdate: () => update(true) });
+                state.priceA = 60; state.priceB = 60; update(true);
+            } finally { state.isSimulating = false; }
+        }
+
+        function startTitForTat() {
+            state.isTFT = true;
+            state.priceA = 60; 
+            state.priceB = 60;
+            updateUIState('tft');
+            update(true);
+
+            document.getElementById('explanation-content').innerHTML = `
+                <h3>🔃 "Око за око" — Алгоритм замість Довіри</h3>
+                <p>Тепер Червона заправка більше не вірить на слово. Це бот, який копіює твій останній крок.</p>
+                <p>👉 <strong>СПРОБУЙ ОБМАНУТИ ТЕПЕР:</strong> Знизь ціну Синьої. Бот миттєво відповість тим самим. Твій прибуток впаде, і ти зрозумієш, що з ботом вигідно тільки дружити.</p>
+            `;
+        }
+
+        async function runMonopoly() {
+            if (state.isSimulating) return;
+            state.isTFT = false;
+            state.isSimulating = true;
+            updateUIState('monopoly');
+
+            try {
+                document.getElementById('explanation-content').innerHTML = `
+                    <h3>👑 Монополія</h3>
+                    <p>Ринком володіє <strong>тільки одна компанія</strong>. У неї немає конкурентів, 
+                    тому вона може ставити будь-яку ціну.</p>
+                `;
+                await gsap.to(state, { priceA: 100, priceB: 100, duration: 1.5, ease: "power2.out", onUpdate: () => update(true) });
+                state.priceA = 100; state.priceB = 100; update(true);
+            } finally { state.isSimulating = false; }
+        }
+
+        function updateUIState(mode) {
+            document.getElementById('badgeCollusion').classList.toggle('active', mode === 'collusion');
+            document.getElementById('badgeTFT').classList.toggle('active', mode === 'tft');
+            
+            const botB = document.getElementById('botB');
+            if (mode === 'collusion') {
+                botB.innerText = 'ПАРТНЕР (ДОВІРЯЄ)';
+                botB.className = 'bot-state';
+            } else if (mode === 'tft') {
+                botB.innerText = 'АІ (ОКО ЗА ОКО)';
+                botB.className = 'bot-state active';
+            } else if (mode === 'monopoly') {
+                botB.innerText = 'БЕЗ КОНКУРЕНЦІЇ';
+                botB.className = 'bot-state';
+            } else {
+                botB.innerText = 'ПАРТНЕР';
+                botB.className = 'bot-state';
+            }
+        }
+
+        function resetSim() {
+            if (state.isSimulating) return;
+            state.isTFT = false;
+            state.priceA = 50; state.priceB = 50; state.step = 0;
+            updateUIState('none');
+            if (chart) {
+                chart.data.labels = [];
+                chart.data.datasets[0].data = [];
+                chart.data.datasets[1].data = [];
+                chart.update();
+            }
+            document.getElementById('explanation-content').innerHTML = `
+                <h3>Початковий стан</h3>
+                <p>Вибери сценарій, щоб побачити результат.</p>
+            `;
+            update(true);
+        }
+
+        init();
+    </script>
+</body>
+</html>
