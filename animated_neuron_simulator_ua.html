@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Симулятор штучного нейрона</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #1e293b;
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --good: #22c55e;
+      --bad: #ef4444;
+      --line: #475569;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1e293b, var(--bg));
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    h1, h2, h3, p {
+      margin-top: 0;
+    }
+
+    .app {
+      max-width: 1180px;
+      margin: 0 auto;
+    }
+
+    .hero {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      align-items: flex-start;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 {
+      font-size: clamp(28px, 4vw, 44px);
+      margin-bottom: 8px;
+    }
+
+    .hero p {
+      color: var(--muted);
+      font-size: 18px;
+      max-width: 760px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 320px 1fr 300px;
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .card {
+      background: rgba(15, 23, 42, 0.82);
+      border: 1px solid rgba(148, 163, 184, 0.2);
+      border-radius: 22px;
+      padding: 18px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.25);
+    }
+
+    .control {
+      margin-bottom: 18px;
+    }
+
+    .control label {
+      display: flex;
+      justify-content: space-between;
+      color: var(--text);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 6px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+    }
+
+    .toggle-row:last-child {
+      border-bottom: 0;
+    }
+
+    .toggle-row input {
+      transform: scale(1.25);
+      accent-color: var(--accent);
+    }
+
+    .network {
+      position: relative;
+      min-height: 560px;
+      overflow: hidden;
+    }
+
+    svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    .node {
+      position: absolute;
+      z-index: 2;
+      width: 112px;
+      min-height: 86px;
+      border-radius: 24px;
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 10px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.3);
+    }
+
+    .node .emoji {
+      font-size: 30px;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+
+    .node small {
+      color: var(--muted);
+    }
+
+    .input-temp { left: 30px; top: 60px; }
+    .input-sun { left: 30px; top: 230px; }
+    .input-rain { left: 30px; top: 400px; }
+
+    .neuron {
+      left: 50%;
+      top: 50%;
+      width: 150px;
+      min-height: 150px;
+      transform: translate(-50%, -50%);
+      border-radius: 999px;
+      background: radial-gradient(circle at 35% 25%, #38bdf8, #1d4ed8 55%, #172554);
+      border: 2px solid rgba(186, 230, 253, 0.7);
+    }
+
+    .neuron .emoji {
+      font-size: 48px;
+    }
+
+    .output {
+      right: 28px;
+      top: 235px;
+      width: 138px;
+      min-height: 110px;
+    }
+
+    .signal {
+      position: absolute;
+      z-index: 1;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 18px var(--accent);
+      opacity: 0;
+      animation-duration: 1.7s;
+      animation-iteration-count: infinite;
+      animation-timing-function: ease-in-out;
+    }
+
+    .s1 { animation-name: moveTemp; }
+    .s2 { animation-name: moveSun; animation-delay: .25s; }
+    .s3 { animation-name: moveRain; animation-delay: .5s; }
+    .s4 { animation-name: moveOut; animation-delay: .9s; background: var(--good); box-shadow: 0 0 18px var(--good); }
+
+    @keyframes moveTemp {
+      0% { left: 120px; top: 100px; opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { left: calc(50% - 45px); top: calc(50% - 40px); opacity: 0; }
+    }
+
+    @keyframes moveSun {
+      0% { left: 120px; top: 270px; opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { left: calc(50% - 55px); top: calc(50% + 0px); opacity: 0; }
+    }
+
+    @keyframes moveRain {
+      0% { left: 120px; top: 440px; opacity: 0; }
+      15% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { left: calc(50% - 45px); top: calc(50% + 42px); opacity: 0; }
+    }
+
+    @keyframes moveOut {
+      0% { left: calc(50% + 62px); top: calc(50% + 0px); opacity: 0; }
+      20% { opacity: 1; }
+      85% { opacity: 1; }
+      100% { left: calc(100% - 142px); top: 280px; opacity: 0; }
+    }
+
+    .math-box {
+      background: rgba(30, 41, 59, 0.8);
+      border-radius: 16px;
+      padding: 14px;
+      margin-top: 10px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      line-height: 1.6;
+      color: #bae6fd;
+      overflow-x: auto;
+    }
+
+    .score {
+      font-size: 46px;
+      font-weight: 900;
+      margin: 12px 0;
+    }
+
+    .decision {
+      font-size: 28px;
+      font-weight: 900;
+      padding: 14px;
+      border-radius: 18px;
+      text-align: center;
+      margin: 12px 0;
+    }
+
+    .decision.good {
+      background: rgba(34, 197, 94, 0.16);
+      color: #86efac;
+      border: 1px solid rgba(34, 197, 94, 0.4);
+    }
+
+    .decision.bad {
+      background: rgba(239, 68, 68, 0.16);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+
+    .btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: white;
+      font-weight: 800;
+      background: #2563eb;
+      cursor: pointer;
+      box-shadow: 0 8px 18px rgba(37, 99, 235, .25);
+    }
+
+    button.secondary {
+      background: #334155;
+      box-shadow: none;
+    }
+
+    .teacher-note {
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.14);
+      color: #7dd3fc;
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 10px;
+    }
+
+    @media (max-width: 960px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      .network {
+        min-height: 520px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="hero">
+      <div>
+        <div class="pill">Data Science для школи</div>
+        <h1>Як працює штучний нейрон?</h1>
+        <p>
+          Змінюй температуру, сонце, дощ і ваги. Нейрон рахує суму сигналів і приймає рішення: йти гуляти чи залишитись вдома.
+        </p>
+      </div>
+    </section>
+
+    <main class="grid">
+      <section class="card">
+        <h2>Вхідні сигнали</h2>
+
+        <div class="control">
+          <label>
+            <span>🌡 Температура</span>
+            <span><b id="tempText">20</b>°C</span>
+          </label>
+          <input id="temp" type="range" min="0" max="40" value="20" />
+          <div class="sub">Нормалізуємо до числа від 0 до 1.</div>
+        </div>
+
+        <div class="toggle-row">
+          <strong>☀️ Сонце</strong>
+          <input id="sun" type="checkbox" checked />
+        </div>
+
+        <div class="toggle-row">
+          <strong>🌧 Дощ</strong>
+          <input id="rain" type="checkbox" />
+        </div>
+
+        <hr style="border-color: rgba(148,163,184,.15); margin: 20px 0;" />
+
+        <h2>Ваги нейрона</h2>
+
+        <div class="control">
+          <label>
+            <span>Вага температури</span>
+            <span id="wTempText">0.40</span>
+          </label>
+          <input id="wTemp" type="range" min="-1" max="1" step="0.05" value="0.4" />
+        </div>
+
+        <div class="control">
+          <label>
+            <span>Вага сонця</span>
+            <span id="wSunText">0.70</span>
+          </label>
+          <input id="wSun" type="range" min="-1" max="1" step="0.05" value="0.7" />
+        </div>
+
+        <div class="control">
+          <label>
+            <span>Вага дощу</span>
+            <span id="wRainText">-0.90</span>
+          </label>
+          <input id="wRain" type="range" min="-1" max="1" step="0.05" value="-0.9" />
+        </div>
+
+        <div class="control">
+          <label>
+            <span>Поріг / bias</span>
+            <span id="biasText">-0.20</span>
+          </label>
+          <input id="bias" type="range" min="-1" max="1" step="0.05" value="-0.2" />
+        </div>
+      </section>
+
+      <section class="card network">
+        <svg viewBox="0 0 680 560" preserveAspectRatio="none">
+          <line x1="110" y1="105" x2="340" y2="250" stroke="var(--line)" stroke-width="4" stroke-linecap="round" />
+          <line x1="110" y1="275" x2="340" y2="280" stroke="var(--line)" stroke-width="4" stroke-linecap="round" />
+          <line x1="110" y1="445" x2="340" y2="310" stroke="var(--line)" stroke-width="4" stroke-linecap="round" />
+          <line x1="420" y1="280" x2="560" y2="280" stroke="var(--line)" stroke-width="5" stroke-linecap="round" />
+        </svg>
+
+        <div class="node input-temp">
+          <div class="emoji">🌡</div>
+          <strong>Температура</strong>
+          <small id="tempNode">0.50 × 0.40</small>
+        </div>
+
+        <div class="node input-sun">
+          <div class="emoji">☀️</div>
+          <strong>Сонце</strong>
+          <small id="sunNode">1 × 0.70</small>
+        </div>
+
+        <div class="node input-rain">
+          <div class="emoji">🌧</div>
+          <strong>Дощ</strong>
+          <small id="rainNode">0 × -0.90</small>
+        </div>
+
+        <div class="node neuron">
+          <div class="emoji">🧠</div>
+          <strong>Нейрон</strong>
+          <small>сума сигналів</small>
+        </div>
+
+        <div class="node output">
+          <div class="emoji" id="outEmoji">🚶</div>
+          <strong>Рішення</strong>
+          <small id="outSmall">гуляти</small>
+        </div>
+
+        <div class="signal s1"></div>
+        <div class="signal s2"></div>
+        <div class="signal s3"></div>
+        <div class="signal s4" id="outSignal"></div>
+      </section>
+
+      <section class="card">
+        <h2>Розрахунок</h2>
+        <div class="math-box" id="formula"></div>
+
+        <div class="score" id="scoreText">0.70</div>
+        <div class="decision good" id="decisionBox">Йдемо гуляти 🚶</div>
+
+        <p class="sub">
+          Якщо сума більша за 0 — нейрон каже “так”. Якщо менша або дорівнює 0 — “ні”.
+        </p>
+
+        <div class="btns">
+          <button onclick="makeSunnyExample()">Сонячний день</button>
+          <button class="secondary" onclick="makeRainExample()">Дощовий день</button>
+          <button class="secondary" onclick="randomize()">Випадково</button>
+          <button onclick="resetAll()">Скинути</button>
+        </div>
+
+        <div class="teacher-note">
+          <strong>Питання до класу:</strong><br />
+          Що зміниться, якщо вага дощу стане позитивною? А якщо зробити багато таких нейронів?
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const ids = ["temp", "sun", "rain", "wTemp", "wSun", "wRain", "bias"];
+    const el = Object.fromEntries(ids.map(id => [id, document.getElementById(id)]));
+
+    const fmt = (n) => Number(n).toFixed(2);
+
+    function readState() {
+      const tempC = Number(el.temp.value);
+      const temp = tempC / 40;
+      const sun = el.sun.checked ? 1 : 0;
+      const rain = el.rain.checked ? 1 : 0;
+
+      const wTemp = Number(el.wTemp.value);
+      const wSun = Number(el.wSun.value);
+      const wRain = Number(el.wRain.value);
+      const bias = Number(el.bias.value);
+
+      const score = temp * wTemp + sun * wSun + rain * wRain + bias;
+      return { tempC, temp, sun, rain, wTemp, wSun, wRain, bias, score };
+    }
+
+    function update() {
+      const s = readState();
+      const positive = s.score > 0;
+
+      document.getElementById("tempText").textContent = s.tempC;
+      document.getElementById("wTempText").textContent = fmt(s.wTemp);
+      document.getElementById("wSunText").textContent = fmt(s.wSun);
+      document.getElementById("wRainText").textContent = fmt(s.wRain);
+      document.getElementById("biasText").textContent = fmt(s.bias);
+
+      document.getElementById("tempNode").textContent = `${fmt(s.temp)} × ${fmt(s.wTemp)}`;
+      document.getElementById("sunNode").textContent = `${s.sun} × ${fmt(s.wSun)}`;
+      document.getElementById("rainNode").textContent = `${s.rain} × ${fmt(s.wRain)}`;
+
+      document.getElementById("formula").innerHTML =
+        `сума = ${fmt(s.temp)}×${fmt(s.wTemp)}<br>` +
+        `&nbsp;&nbsp;&nbsp;&nbsp;+ ${s.sun}×${fmt(s.wSun)}<br>` +
+        `&nbsp;&nbsp;&nbsp;&nbsp;+ ${s.rain}×${fmt(s.wRain)}<br>` +
+        `&nbsp;&nbsp;&nbsp;&nbsp;+ ${fmt(s.bias)}<br>` +
+        `сума = ${fmt(s.score)}`;
+
+      document.getElementById("scoreText").textContent = fmt(s.score);
+
+      const box = document.getElementById("decisionBox");
+      box.className = `decision ${positive ? "good" : "bad"}`;
+      box.textContent = positive ? "Йдемо гуляти 🚶" : "Сидимо вдома 🏠";
+
+      document.getElementById("outEmoji").textContent = positive ? "🚶" : "🏠";
+      document.getElementById("outSmall").textContent = positive ? "гуляти" : "вдома";
+
+      const outSignal = document.getElementById("outSignal");
+      outSignal.style.background = positive ? "var(--good)" : "var(--bad)";
+      outSignal.style.boxShadow = positive ? "0 0 18px var(--good)" : "0 0 18px var(--bad)";
+    }
+
+    function makeSunnyExample() {
+      el.temp.value = 25;
+      el.sun.checked = true;
+      el.rain.checked = false;
+      update();
+    }
+
+    function makeRainExample() {
+      el.temp.value = 8;
+      el.sun.checked = false;
+      el.rain.checked = true;
+      update();
+    }
+
+    function randomize() {
+      el.temp.value = Math.round(Math.random() * 40);
+      el.sun.checked = Math.random() > 0.5;
+      el.rain.checked = Math.random() > 0.5;
+      update();
+    }
+
+    function resetAll() {
+      el.temp.value = 20;
+      el.sun.checked = true;
+      el.rain.checked = false;
+      el.wTemp.value = 0.4;
+      el.wSun.value = 0.7;
+      el.wRain.value = -0.9;
+      el.bias.value = -0.2;
+      update();
+    }
+
+    ids.forEach(id => el[id].addEventListener("input", update));
+    update();
+  </script>
+</body>
+</html>
