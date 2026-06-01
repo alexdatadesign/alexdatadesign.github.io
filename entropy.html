@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Симулятор ентропії монетки</title>
+  <style>
+    :root {
+      --bg: #020617;
+      --panel: rgba(15, 23, 42, 0.86);
+      --panel2: rgba(30, 41, 59, 0.72);
+      --text: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --line: rgba(148, 163, 184, 0.24);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #1e3a8a 0, #0f172a 42%, #020617 100%);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 24px;
+    }
+
+    .app {
+      max-width: 1220px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(30px, 5vw, 52px);
+      line-height: 1.05;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      margin-bottom: 22px;
+      font-size: 18px;
+      line-height: 1.45;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 20px;
+    }
+
+    @media (max-width: 920px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      padding: 18px;
+      box-shadow: 0 24px 70px rgba(0,0,0,0.36);
+      backdrop-filter: blur(10px);
+    }
+
+    .chart-wrap {
+      position: relative;
+      border-radius: 20px;
+      overflow: hidden;
+      background: rgba(2, 6, 23, 0.72);
+      border: 1px solid var(--line);
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 460px;
+    }
+
+    .formula {
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 18px;
+      background: rgba(56, 189, 248, 0.09);
+      border: 1px solid rgba(56, 189, 248, 0.26);
+      font-size: 18px;
+      line-height: 1.5;
+    }
+
+    .formula code {
+      font-size: 18px;
+      color: #bae6fd;
+      background: rgba(2, 6, 23, 0.7);
+      padding: 3px 7px;
+      border-radius: 8px;
+    }
+
+    .controls {
+      display: grid;
+      gap: 16px;
+    }
+
+    label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+
+    .buttons {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 14px;
+      padding: 12px 14px;
+      font-weight: 900;
+      cursor: pointer;
+      color: #06111f;
+      background: var(--accent);
+      transition: transform .12s ease, filter .12s ease;
+    }
+
+    button:hover { transform: translateY(-1px); filter: brightness(1.08); }
+    button.secondary { background: #cbd5e1; }
+    button.danger { background: #fb7185; }
+
+    .quick-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+
+    .quick-buttons button {
+      padding: 9px 8px;
+      font-size: 13px;
+      background: #a7f3d0;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat {
+      background: var(--panel2);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      border-radius: 18px;
+      padding: 14px;
+    }
+
+    .stat-title { color: var(--muted); font-size: 14px; }
+    .stat-value { font-size: 28px; font-weight: 950; margin-top: 2px; }
+    .wide { grid-column: 1 / -1; }
+
+    .bar {
+      width: 100%;
+      height: 11px;
+      margin-top: 10px;
+      border-radius: 999px;
+      background: #334155;
+      overflow: hidden;
+    }
+
+    .fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--good), var(--warn), var(--bad));
+      border-radius: 999px;
+      transition: width .2s ease;
+    }
+
+    .sequence {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      background: rgba(2, 6, 23, 0.72);
+      border: 1px solid rgba(148, 163, 184, 0.18);
+      border-radius: 16px;
+      padding: 14px;
+      min-height: 82px;
+      word-break: break-all;
+      font-size: 20px;
+      letter-spacing: 2px;
+      line-height: 1.6;
+    }
+
+    .bit0 { color: #93c5fd; }
+    .bit1 { color: #fcd34d; }
+
+    .question, .explain {
+      border-radius: 18px;
+      padding: 14px;
+      line-height: 1.5;
+    }
+
+    .question {
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.25);
+      font-weight: 750;
+    }
+
+    .explain {
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(148, 163, 184, 0.16);
+      color: var(--muted);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: rgba(148, 163, 184, 0.14);
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <h1>Ентропія монетки</h1>
+    <div class="subtitle">Рухай повзунок і дивись, як змінюється передбачуваність. Найбільша ентропія не тоді, коли завжди 0 або завжди 1, а коли шанс 50/50.</div>
+
+    <section class="layout">
+      <div class="card">
+        <div class="chart-wrap">
+          <canvas id="chart"></canvas>
+        </div>
+        <div class="formula">
+          Формула Шеннона для двох результатів: <code>H = -p log₂(p) - (1-p) log₂(1-p)</code><br />
+          Тут <code>p</code> — ймовірність отримати 1. Максимум: <code>H = 1 біт</code>, коли <code>p = 50%</code>.
+        </div>
+        <div class="legend">
+          <span class="pill">0 біт = нема сюрпризу</span>
+          <span class="pill">1 біт = максимум невизначеності</span>
+          <span class="pill">50/50 = найважче вгадати</span>
+        </div>
+      </div>
+
+      <aside class="card controls">
+        <div>
+          <label for="probability">Ймовірність 1 <span id="probabilityValue">50%</span></label>
+          <input id="probability" type="range" min="0" max="100" value="50" />
+        </div>
+
+        <div class="quick-buttons">
+          <button data-p="0">0%</button>
+          <button data-p="10">10%</button>
+          <button data-p="50">50%</button>
+          <button data-p="90">90%</button>
+        </div>
+
+        <div>
+          <label for="speed">Швидкість <span id="speedValue">45%</span></label>
+          <input id="speed" type="range" min="5" max="100" value="45" />
+        </div>
+
+        <div class="buttons">
+          <button id="startBtn">Старт</button>
+          <button class="secondary" id="stepBtn">1 кидок</button>
+          <button class="danger" id="resetBtn">Скинути</button>
+        </div>
+
+        <div class="stats">
+          <div class="stat">
+            <div class="stat-title">Ентропія</div>
+            <div class="stat-value" id="entropyValue">1.00</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Найкраще вгадування</div>
+            <div class="stat-value" id="guessValue">50%</div>
+          </div>
+          <div class="stat wide">
+            <div class="stat-title">Невизначеність</div>
+            <div class="bar"><div class="fill" id="entropyBar"></div></div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Кількість 0</div>
+            <div class="stat-value" id="zeroCount">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Кількість 1</div>
+            <div class="stat-value" id="oneCount">0</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="sequence" id="sequence">Натисни “Старт” або “1 кидок”</div>
+        </div>
+
+        <div class="question" id="question">Питання до класу: якщо шанс 1 = 50%, що краще вгадувати — 0 чи 1?</div>
+        <div class="explain" id="explain">При 50/50 обидві відповіді однаково можливі. Це максимальна ентропія: компʼютер не має кращої стратегії, ніж просто вгадувати.</div>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const canvas = document.getElementById('chart');
+    const ctx = canvas.getContext('2d');
+    const probabilitySlider = document.getElementById('probability');
+    const speedSlider = document.getElementById('speed');
+    const probabilityValue = document.getElementById('probabilityValue');
+    const speedValue = document.getElementById('speedValue');
+    const entropyValue = document.getElementById('entropyValue');
+    const guessValue = document.getElementById('guessValue');
+    const entropyBar = document.getElementById('entropyBar');
+    const zeroCount = document.getElementById('zeroCount');
+    const oneCount = document.getElementById('oneCount');
+    const sequenceEl = document.getElementById('sequence');
+    const questionEl = document.getElementById('question');
+    const explainEl = document.getElementById('explain');
+    const startBtn = document.getElementById('startBtn');
+    const stepBtn = document.getElementById('stepBtn');
+    const resetBtn = document.getElementById('resetBtn');
+
+    let dpr = window.devicePixelRatio || 1;
+    let width = 0;
+    let height = 0;
+    let running = false;
+    let lastTime = 0;
+    let sequence = [];
+
+    function log2(x) {
+      return Math.log(x) / Math.log(2);
+    }
+
+    function entropy(p) {
+      if (p === 0 || p === 1) return 0;
+      return -p * log2(p) - (1 - p) * log2(1 - p);
+    }
+
+    function resize() {
+      const rect = canvas.getBoundingClientRect();
+      width = rect.width;
+      height = rect.height;
+      canvas.width = Math.floor(width * dpr);
+      canvas.height = Math.floor(height * dpr);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      drawChart();
+    }
+
+    function drawChart() {
+      const pCurrent = Number(probabilitySlider.value) / 100;
+      const hCurrent = entropy(pCurrent);
+      const pad = { left: 58, right: 28, top: 30, bottom: 54 };
+      const plotW = width - pad.left - pad.right;
+      const plotH = height - pad.top - pad.bottom;
+
+      ctx.clearRect(0, 0, width, height);
+      const bg = ctx.createLinearGradient(0, 0, 0, height);
+      bg.addColorStop(0, '#0f172a');
+      bg.addColorStop(1, '#020617');
+      ctx.fillStyle = bg;
+      ctx.fillRect(0, 0, width, height);
+
+      ctx.strokeStyle = 'rgba(148, 163, 184, 0.22)';
+      ctx.lineWidth = 1;
+      ctx.font = '12px system-ui';
+      ctx.fillStyle = '#94a3b8';
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+
+      for (let i = 0; i <= 4; i++) {
+        const y = pad.top + plotH - (i / 4) * plotH;
+        ctx.beginPath();
+        ctx.moveTo(pad.left, y);
+        ctx.lineTo(width - pad.right, y);
+        ctx.stroke();
+        ctx.fillText((i / 4).toFixed(2), pad.left - 10, y);
+      }
+
+      ctx.strokeStyle = 'rgba(226, 232, 240, 0.7)';
+      ctx.beginPath();
+      ctx.moveTo(pad.left, pad.top);
+      ctx.lineTo(pad.left, pad.top + plotH);
+      ctx.lineTo(width - pad.right, pad.top + plotH);
+      ctx.stroke();
+
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = '#94a3b8';
+      for (let xPct = 0; xPct <= 100; xPct += 25) {
+        const x = pad.left + (xPct / 100) * plotW;
+        ctx.fillText(xPct + '%', x, pad.top + plotH + 14);
+      }
+
+      ctx.save();
+      ctx.translate(18, pad.top + plotH / 2);
+      ctx.rotate(-Math.PI / 2);
+      ctx.textAlign = 'center';
+      ctx.fillText('Ентропія, біти', 0, 0);
+      ctx.restore();
+
+      ctx.textAlign = 'center';
+      ctx.fillText('Ймовірність отримати 1', pad.left + plotW / 2, height - 22);
+
+      const curve = ctx.createLinearGradient(pad.left, 0, width - pad.right, 0);
+      curve.addColorStop(0, '#22c55e');
+      curve.addColorStop(0.5, '#f59e0b');
+      curve.addColorStop(1, '#22c55e');
+      ctx.strokeStyle = curve;
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      for (let i = 0; i <= 100; i++) {
+        const p = i / 100;
+        const h = entropy(p);
+        const x = pad.left + p * plotW;
+        const y = pad.top + plotH - h * plotH;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      const cx = pad.left + pCurrent * plotW;
+      const cy = pad.top + plotH - hCurrent * plotH;
+      ctx.strokeStyle = 'rgba(56, 189, 248, 0.48)';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(cx, pad.top + plotH);
+      ctx.lineTo(cx, cy);
+      ctx.lineTo(pad.left, cy);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#38bdf8';
+      ctx.shadowColor = '#38bdf8';
+      ctx.shadowBlur = 18;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      ctx.fillStyle = '#e5e7eb';
+      ctx.font = '800 18px system-ui';
+      ctx.textAlign = cx > width * 0.72 ? 'right' : 'left';
+      const labelX = cx > width * 0.72 ? cx - 14 : cx + 14;
+      const labelY = Math.max(34, cy - 28);
+      ctx.fillText(`p=${Math.round(pCurrent * 100)}%, H=${hCurrent.toFixed(2)}`, labelX, labelY);
+
+      ctx.font = '900 34px system-ui';
+      ctx.fillStyle = 'rgba(255,255,255,0.06)';
+      ctx.textAlign = 'center';
+      ctx.fillText('MAX ENTROPY AT 50/50', pad.left + plotW / 2, pad.top + 44);
+    }
+
+    function toss() {
+      const p = Number(probabilitySlider.value) / 100;
+      const bit = Math.random() < p ? 1 : 0;
+      sequence.push(bit);
+      if (sequence.length > 72) sequence.shift();
+      updateUi();
+    }
+
+    function updateUi() {
+      const pPct = Number(probabilitySlider.value);
+      const p = pPct / 100;
+      const h = entropy(p);
+      const bestGuess = Math.max(p, 1 - p);
+      const ones = sequence.filter(x => x === 1).length;
+      const zeros = sequence.length - ones;
+
+      probabilityValue.textContent = pPct + '%';
+      speedValue.textContent = speedSlider.value + '%';
+      entropyValue.textContent = h.toFixed(2);
+      guessValue.textContent = Math.round(bestGuess * 100) + '%';
+      entropyBar.style.width = Math.round(h * 100) + '%';
+      zeroCount.textContent = zeros;
+      oneCount.textContent = ones;
+
+      if (sequence.length === 0) {
+        sequenceEl.textContent = 'Натисни “Старт” або “1 кидок”';
+      } else {
+        sequenceEl.innerHTML = sequence.map(x => `<span class="bit${x}">${x}</span>`).join(' ');
+      }
+
+      if (pPct === 0 || pPct === 100) {
+        questionEl.textContent = 'Питання до класу: чи є тут сюрприз, якщо результат завжди однаковий?';
+        explainEl.textContent = 'Ентропія дорівнює 0: результат повністю передбачуваний. Компʼютер може вгадувати правильно майже завжди.';
+      } else if (pPct < 25 || pPct > 75) {
+        questionEl.textContent = 'Питання до класу: що краще вгадувати кожного разу — 0 чи 1?';
+        explainEl.textContent = 'Ентропія низька або середня: один результат трапляється набагато частіше. Є проста стратегія — завжди вгадувати найчастіший символ.';
+      } else if (pPct >= 45 && pPct <= 55) {
+        questionEl.textContent = 'Питання до класу: чому 50/50 — це найскладніший випадок для передбачення?';
+        explainEl.textContent = 'Ентропія максимальна: 0 і 1 майже однаково ймовірні. Немає кращого вибору, тому модель має найбільшу невизначеність.';
+      } else {
+        questionEl.textContent = 'Питання до класу: чи вже можна знайти кращу стратегію, ніж випадкове вгадування?';
+        explainEl.textContent = 'Ентропія ще досить висока, але вже видно перевагу одного символу. Чим далі від 50/50, тим легше передбачати.';
+      }
+
+      drawChart();
+    }
+
+    function reset() {
+      sequence = [];
+      updateUi();
+    }
+
+    function loop(t) {
+      if (!running) return;
+      const speed = Number(speedSlider.value);
+      const interval = 360 - speed * 3;
+      if (t - lastTime > interval) {
+        toss();
+        lastTime = t;
+      }
+      requestAnimationFrame(loop);
+    }
+
+    startBtn.addEventListener('click', () => {
+      running = !running;
+      startBtn.textContent = running ? 'Пауза' : 'Старт';
+      if (running) requestAnimationFrame(loop);
+    });
+
+    stepBtn.addEventListener('click', toss);
+    resetBtn.addEventListener('click', reset);
+    probabilitySlider.addEventListener('input', updateUi);
+    speedSlider.addEventListener('input', updateUi);
+    document.querySelectorAll('.quick-buttons button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        probabilitySlider.value = btn.dataset.p;
+        updateUi();
+      });
+    });
+    window.addEventListener('resize', resize);
+
+    resize();
+    updateUi();
+  </script>
+</body>
+</html>
